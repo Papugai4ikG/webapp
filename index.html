@@ -46,7 +46,7 @@
         if (window.Telegram.WebApp && !isExternal) {
             
             window.Telegram.WebApp.ready();
-            
+            overlay.innertext='hshhs';
             // Строим URL с добавлением параметра external=true
             const redirectUrl = new URL(document.location.href);
             redirectUrl.searchParams.set('external', 'true');
