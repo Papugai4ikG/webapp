@@ -26,6 +26,17 @@
     <video id="video" playsinline autoplay></video>
     <canvas id="canvas" style="display:none;"></canvas>
     <div id="error-msg"></div>
+    <button id="external-browser-btn" style="
+        display: none; 
+        margin-top: 20px; 
+        padding: 10px 20px; 
+        background-color: #007bff; 
+        color: white; 
+        border: none;
+        cursor: pointer;
+    ">
+        Открыть сканер в системном браузере
+    </button>
 
     <script>
         const video = document.getElementById('video');
@@ -59,14 +70,31 @@
             }
         }
 
+
         function displayError(msg) {
             errorMsg.innerText = '❌ ' + msg;
             overlay.innerText = 'СБОЙ.';
+    
+            // Показываем кнопку "Открыть в браузере"
+            const externalBtn = document.getElementById('external-browser-btn');
+            externalBtn.style.display = 'block';
+
+            // Привязываем действие: открыть текущую страницу в системном браузере
+            externalBtn.onclick = () => {
+                if (window.Telegram.WebApp) {
+            // openLink открывает URL во внешнем (системном) браузере
+                window.Telegram.WebApp.openLink(document.location.href);
+                window.Telegram.WebApp.close(); // Закрываем WebApp
+                }
+            };
+    
             if (window.Telegram.WebApp) window.Telegram.WebApp.showAlert(msg);
+            // Закрываем окно WebApp через 5 секунд, чтобы пользователь успел нажать кнопку
             setTimeout(() => {
-                 if (window.Telegram.WebApp) window.Telegram.WebApp.close();
-            }, 3000);
+                if (window.Telegram.WebApp) window.Telegram.WebApp.close();
+            }, 5000); 
         }
+
 
         // --- 3. Запуск сканера ---
         async function startScanner() {
