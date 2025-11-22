@@ -88,9 +88,10 @@
                 video.addEventListener('loadedmetadata', () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
+                    video.play();
                     overlay.innerText = 'Сканирование...';
                     requestAnimationFrame(tick);
-                });
+                },{ once: true });
                 
             } catch (err) {
                 let msg = 'Ошибка доступа: ';
