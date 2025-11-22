@@ -23,7 +23,7 @@
 </head>
 <body>
     <div id="overlay">Инициализация камеры...</div>
-    <video id="video" playsinline></video>
+    <video id="video" playsinline autoplay></video>
     <canvas id="canvas" style="display:none;"></canvas>
     <div id="error-msg"></div>
 
@@ -79,9 +79,7 @@
                 overlay.innerText = 'Запрос доступа к камере...';
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
-                        facingMode: "environment",
-                        width: { ideal: 640 }, // Ограничиваем разрешение для производительности
-                        height: { ideal: 480 } 
+                        facingMode: "environment"
                     } 
                 });
                 video.srcObject = stream;
