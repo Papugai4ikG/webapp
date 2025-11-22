@@ -70,7 +70,6 @@
             }
         }
 
-
         function displayError(msg) {
             errorMsg.innerText = '❌ ' + msg;
             overlay.innerText = 'СБОЙ.';
@@ -82,9 +81,9 @@
             // Привязываем действие: открыть текущую страницу в системном браузере
             externalBtn.onclick = () => {
                 if (window.Telegram.WebApp) {
-            // openLink открывает URL во внешнем (системном) браузере
-                window.Telegram.WebApp.openLink(document.location.href);
-                window.Telegram.WebApp.close(); // Закрываем WebApp
+                    // openLink открывает URL во внешнем (системном) браузере
+                    window.Telegram.WebApp.openLink(document.location.href);
+                    window.Telegram.WebApp.close(); // Закрываем WebApp
                 }
             };
     
