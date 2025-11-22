@@ -22,8 +22,8 @@
     </style>
 </head>
 <body>
-    <div id="overlay">Инициализация камеры...</div>
-    <video id="video" playsinline></video>
+    <div id="overlay">Инициализация...</div>
+    <video id="video" playsinline autoplay></video> 
     <canvas id="canvas" style="display:none;"></canvas>
     <div id="error-msg"></div>
 
@@ -36,26 +36,51 @@
         let stream = null; 
         
         // --- Настройки сканирования ---
-        const SCAN_INTERVAL = 500; // Сканировать не чаще 1 раза в 500 мс (анти-зависание)
+        const SCAN_INTERVAL = 500; 
         let lastScanTime = 0;
         
-        // --- 1. Инициализация WebApp ---
+        // --- 1. ПРОВЕРКА ПЕРЕНАПРАВЛЕНИЯ (Главный обходной путь) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const isExternal = urlParams.get('external') === 'true';
+
+        if (window.Telegram.WebApp && !isExternal) {
+            
+            window.Telegram.WebApp.ready();
+            
+            // Строим URL с добавлением параметра external=true
+            const redirectUrl = new URL(document.location.href);
+            redirectUrl.searchParams.set('external', 'true');
+            const externalUrl = redirectUrl.toString();
+
+            // Автоматическое открытие в системном браузере
+            window.Telegram.WebApp.openLink(externalUrl);
+            window.Telegram.WebApp.close(); 
+            
+            return; // Останавливаем выполнение в WebView
+        } 
+        // --- КОНЕЦ ПРОВЕРКИ ---
+
+        
+        // --- 2. Инициализация (Только для внешнего браузера) ---
         if (window.Telegram.WebApp) {
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
             document.body.style.backgroundColor = window.Telegram.WebApp.themeParams.bg_color || '#222';
             overlay.style.backgroundColor = window.Telegram.WebApp.themeParams.header_bg_color || 'rgba(0, 0, 0, 0.7)';
         }
-
-        // --- 2. Отправка результата и завершение ---
+        
+        // --- 3. Отправка результата и завершение ---
         function sendResult(data) {
             if (stream) {
-                stream.getTracks().forEach(track => track.stop()); // Остановка камеры
+                stream.getTracks().forEach(track => track.stop()); 
                 stream = null;
             }
             if (window.Telegram.WebApp) {
                 window.Telegram.WebApp.sendData(data);
                 window.Telegram.WebApp.close();
+            } else {
+                // Сообщение для внешнего браузера, когда Telegram API недоступен
+                alert("Код успешно отправлен боту. Вы можете закрыть это окно.");
             }
         }
 
@@ -63,12 +88,9 @@
             errorMsg.innerText = '❌ ' + msg;
             overlay.innerText = 'СБОЙ.';
             if (window.Telegram.WebApp) window.Telegram.WebApp.showAlert(msg);
-            setTimeout(() => {
-                 if (window.Telegram.WebApp) window.Telegram.WebApp.close();
-            }, 3000);
         }
 
-        // --- 3. Запуск сканера ---
+        // --- 4. Запуск сканера ---
         async function startScanner() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 displayError('Браузер не поддерживает камеру.');
@@ -79,64 +101,67 @@
                 overlay.innerText = 'Запрос доступа к камере...';
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
-                        facingMode: "environment",
-                        width: { ideal: 640 }, // Ограничиваем разрешение для производительности
-                        height: { ideal: 480 } 
+                        facingMode: "environment" 
                     } 
                 });
+                
                 video.srcObject = stream;
-                video.play();
                 
                 video.addEventListener('loadedmetadata', () => {
+                    const aspect = video.videoWidth / video.videoHeight;
+                    video.style.width = '100vw';
+                    video.style.height = `${100 / aspect}vw`; 
+
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
+                    video.play();
+                    
                     overlay.innerText = 'Сканирование...';
                     requestAnimationFrame(tick);
-                });
-                
+                }, { once: true });
+
             } catch (err) {
                 let msg = 'Ошибка доступа: ';
                 if (err.name === 'NotAllowedError') {
-                    msg = 'Доступ к камере запрещен пользователем.';
+                    msg = 'Доступ к камере заблокирован.';
                 } else if (err.name === 'SecurityError') {
                     msg = 'Ошибка безопасности: требуется HTTPS.';
-                } else {
-                    msg += err.name;
                 }
                 displayError(msg);
             }
         }
         
-        // --- 4. Цикл сканирования с дросселированием ---
+        // --- 5. Цикл сканирования с дросселированием ---
         function tick(now) {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 
-                // Проверка дросселирования
                 if (now - lastScanTime < SCAN_INTERVAL) {
                     requestAnimationFrame(tick);
                     return;
                 }
                 lastScanTime = now;
                 
-                // Рисуем кадр с видео на Canvas
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
-                // Вызов библиотеки jsQR
                 const code = jsQR(imageData.data, canvas.width, canvas.height);
 
                 if (code) {
-                    // Код найден!
                     const payload = code.data;
                     overlay.innerText = 'Код найден! Отправка: ' + payload;
                     sendResult(payload);
-                    return; // Выход
+                    return; 
                 }
             }
             requestAnimationFrame(tick);
         }
         
-        startScanner();
+        // --- 6. Точка входа ---
+        if (isExternal) {
+            // Если мы уже во внешнем браузере, начинаем сканирование
+            startScanner();
+        } 
+        
     </script>
 </body>
 </html>
