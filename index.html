@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>QR Scanner</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
+    
     <style>
         body { margin: 0; padding: 0; background: #222; color: white; text-align: center; overflow: hidden; }
         #video { width: 100%; height: 100vh; object-fit: cover; }
@@ -12,7 +14,6 @@
             position: absolute; 
             top: 0; 
             width: 100%; 
-            background: rgba(0, 0, 0, 0.7); 
             padding: 10px 0; 
             font-size: 1.1em; 
             z-index: 10;
@@ -32,40 +33,56 @@
         const errorMsg = document.getElementById('error-msg');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        let stream = null; // Для хранения потока камеры
-
+        let stream = null; 
+        
+        // --- Настройки сканирования ---
+        const SCAN_INTERVAL = 500; // Сканировать не чаще 1 раза в 500 мс (анти-зависание)
+        let lastScanTime = 0;
+        
         // --- 1. Инициализация WebApp ---
         if (window.Telegram.WebApp) {
             window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand(); // Разворачиваем WebApp на весь экран
-            // Используем цвета темы Telegram
+            window.Telegram.WebApp.expand();
             document.body.style.backgroundColor = window.Telegram.WebApp.themeParams.bg_color || '#222';
             overlay.style.backgroundColor = window.Telegram.WebApp.themeParams.header_bg_color || 'rgba(0, 0, 0, 0.7)';
         }
 
-        // --- 2. Отправка результата в Telegram ---
+        // --- 2. Отправка результата и завершение ---
         function sendResult(data) {
             if (stream) {
-                stream.getTracks().forEach(track => track.stop()); // Останавливаем камеру
+                stream.getTracks().forEach(track => track.stop()); // Остановка камеры
+                stream = null;
             }
             if (window.Telegram.WebApp) {
                 window.Telegram.WebApp.sendData(data);
-                // WebApp закроется после отправки данных
+                window.Telegram.WebApp.close();
             }
         }
 
-        // --- 3. Запуск сканера и обработка ошибок ---
+        function displayError(msg) {
+            errorMsg.innerText = '❌ ' + msg;
+            overlay.innerText = 'СБОЙ.';
+            if (window.Telegram.WebApp) window.Telegram.WebApp.showAlert(msg);
+            setTimeout(() => {
+                 if (window.Telegram.WebApp) window.Telegram.WebApp.close();
+            }, 3000);
+        }
+
+        // --- 3. Запуск сканера ---
         async function startScanner() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                displayError('Браузер не поддерживает доступ к медиа устройствам.');
+                displayError('Браузер не поддерживает камеру.');
                 return;
             }
 
             try {
                 overlay.innerText = 'Запрос доступа к камере...';
-                // Запрашиваем доступ к задней камере (environment)
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" } 
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 640 }, // Ограничиваем разрешение для производительности
+                        height: { ideal: 480 } 
+                    } 
                 });
                 video.srcObject = stream;
                 video.play();
@@ -74,53 +91,46 @@
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     overlay.innerText = 'Сканирование...';
-                    requestAnimationFrame(tick); // Запускаем цикл сканирования
+                    requestAnimationFrame(tick);
                 });
                 
             } catch (err) {
-                // Обработка ошибок доступа к камере
-                let msg = 'Ошибка доступа к камере. Убедитесь, что разрешили доступ и используете HTTPS.';
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    msg = 'Доступ к камере заблокирован. Разрешите доступ в настройках браузера.';
-                } else if (err.name === 'NotReadableError') {
-                    msg = 'Камера используется другим приложением.';
+                let msg = 'Ошибка доступа: ';
+                if (err.name === 'NotAllowedError') {
+                    msg = 'Доступ к камере запрещен пользователем.';
                 } else if (err.name === 'SecurityError') {
-                    msg = 'Необходим протокол HTTPS!';
+                    msg = 'Ошибка безопасности: требуется HTTPS.';
+                } else {
+                    msg += err.name;
                 }
                 displayError(msg);
             }
         }
         
-        function displayError(msg) {
-            errorMsg.innerText = '❌ ' + msg;
-            overlay.innerText = 'СБОЙ.';
-            window.Telegram.WebApp.showAlert(msg);
-            // Даём 3 секунды, чтобы пользователь увидел ошибку, и закрываем
-            setTimeout(() => {
-                 if (window.Telegram.WebApp) window.Telegram.WebApp.close();
-            }, 3000);
-        }
-
-        // --- 4. Цикл сканирования ---
-        function tick() {
+        // --- 4. Цикл сканирования с дросселированием ---
+        function tick(now) {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                
+                // Проверка дросселирования
+                if (now - lastScanTime < SCAN_INTERVAL) {
+                    requestAnimationFrame(tick);
+                    return;
+                }
+                lastScanTime = now;
+                
+                // Рисуем кадр с видео на Canvas
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
-                // ------------------------------------------------------------------
-                // !!! ГЛАВНОЕ: ИНТЕГРАЦИЯ БИБЛИОТЕКИ !!!
-                // Здесь вы должны вызвать вашу библиотеку сканирования (например, jsQR)
-                // Пример: const code = jsQR(imageData.data, canvas.width, canvas.height);
-                // ------------------------------------------------------------------
+                // Вызов библиотеки jsQR
+                const code = jsQR(imageData.data, canvas.width, canvas.height);
 
-                // *** ДЕМО-РЕЗУЛЬТАТ (Удалить после интеграции jsQR!) ***
-                const codeResult = null; // Заменить на 'code.data' после интеграции
-                // *** КОНЕЦ ДЕМО ***
-
-                if (codeResult) {
-                    overlay.innerText = 'Код найден! Отправка: ' + codeResult;
-                    sendResult(codeResult);
-                    return; 
+                if (code) {
+                    // Код найден!
+                    const payload = code.data;
+                    overlay.innerText = 'Код найден! Отправка: ' + payload;
+                    sendResult(payload);
+                    return; // Выход
                 }
             }
             requestAnimationFrame(tick);
