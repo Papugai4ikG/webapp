@@ -41,7 +41,7 @@
         
         // --- 1. ПРОВЕРКА ПЕРЕНАПРАВЛЕНИЯ (Главный обходной путь) ---
         const urlParams = new URLSearchParams(window.location.search);
-        const isExternal = urlParams.get('external') === 'true';
+        const isExternal = urlParams.get('external') === 'false';
 
         if (window.Telegram.WebApp && !isExternal) {
             
