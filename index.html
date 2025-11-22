@@ -45,7 +45,6 @@
 
         if (window.Telegram.WebApp && !isExternal) {
             // Если мы в Telegram WebApp И это первый запуск (нет параметра ?external=true)
-            overlay.innerText = 'Код найден! Отправка';
             window.Telegram.WebApp.ready();
             
             // Собираем URL для внешнего браузера, добавляя параметр external=true
