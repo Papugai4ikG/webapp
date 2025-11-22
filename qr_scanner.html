@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Scanner</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #222; color: white; text-align: center; }
+        #video { width: 100%; max-height: 100vh; object-fit: cover; }
+        #overlay { position: fixed; top: 0; width: 100%; background: rgba(0, 0, 0, 0.7); padding: 10px 0; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div id="overlay">Наведите камеру на QR-код...</div>
+    <video id="video" playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // --- 1. Проверяем, что Telegram API доступен и устанавливаем тему ---
+        if (window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.setBackgroundColor(window.Telegram.WebApp.themeParams.bg_color);
+            window.Telegram.WebApp.setHeaderColor(window.Telegram.WebApp.themeParams.header_bg_color);
+            overlay.style.backgroundColor = window.Telegram.WebApp.themeParams.header_bg_color;
+        }
+
+        // --- 2. Доступ к камере ---
+        async function startScanner() {
+            try {
+                // Запрашиваем доступ к задней камере (environment)
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                video.srcObject = stream;
+                video.play();
+                video.addEventListener('loadedmetadata', () => {
+                    // Устанавливаем размеры Canvas равными размерам видео
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    // Начинаем цикл сканирования
+                    requestAnimationFrame(tick);
+                });
+            } catch (err) {
+                overlay.innerText = 'Ошибка доступа к камере: ' + err.name + '. Убедитесь, что сайт открыт по HTTPS.';
+                window.Telegram.WebApp.showAlert('Ошибка: Нет доступа к камере. Нужен HTTPS.');
+                window.Telegram.WebApp.close();
+            }
+        }
+
+        // --- 3. Цикл сканирования (Здесь будет код jsQR или другой библиотеки) ---
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Копируем кадр с видео на Canvas
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // ВАЖНО: Здесь должен быть вызов библиотеки сканирования, 
+                // например: const code = jsQR(imageData.data, canvas.width, canvas.height);
+                
+                // Эмуляция успешного сканирования для демонстрации API
+                const codeResult = Math.random() < 0.01 ? "QR_CODE_FOUND_123" : null;
+
+                if (codeResult) {
+                    overlay.innerText = 'Код найден! Отправка...';
+                    sendResult(codeResult);
+                    return; // Останавливаем цикл
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        
+        // --- 4. Отправка результата в Telegram ---
+        function sendResult(data) {
+            if (window.Telegram.WebApp) {
+                window.Telegram.WebApp.sendData(data);
+                window.Telegram.WebApp.close();
+            }
+        }
+
+        startScanner();
+    </script>
+</body>
+</html>
