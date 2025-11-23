@@ -1,167 +1,138 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QR Scanner</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.4/dist/jsQR.min.js"></script>
-    
-    <style>
-        body { margin: 0; padding: 0; background: #222; color: white; text-align: center; overflow: hidden; }
-        #video { width: 100%; height: 100vh; object-fit: cover; }
-        #overlay { 
-            position: absolute; 
-            top: 0; 
-            width: 100%; 
-            padding: 10px 0; 
-            font-size: 1.1em; 
-            z-index: 10;
-        }
-        #error-msg { color: #f44336; margin-top: 10px; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QR Scanner WebApp</title>
+
+  <!-- Библиотека сканера QR -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      padding: 1rem; 
+      background: #f5f5f5;
+    }
+    #reader { 
+      width: 100%; 
+      max-width: 480px; 
+      margin: 0 auto; 
+      background: white; 
+      padding: 10px; 
+      border-radius: 8px; 
+    }
+    #result { 
+      margin-top: 1rem; 
+      word-break: break-all; 
+      font-size: 1.1rem;
+    }
+    button { 
+      padding: 0.8rem 1.2rem; 
+      font-size: 1rem; 
+      margin: 0.2rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #0088cc;
+      color: white;
+    }
+    button:disabled {
+      background: #9bb7c9;
+      cursor: default;
+    }
+    .center { text-align:center; }
+  </style>
 </head>
 <body>
-    <div id="overlay">Инициализация...</div>
-    <video id="video" playsinline autoplay></video> 
-    <canvas id="canvas" style="display:none;"></canvas>
-    <div id="error-msg"></div>
 
-    <script>
-        const video = document.getElementById('video');
-        const overlay = document.getElementById('overlay');
-        const errorMsg = document.getElementById('error-msg');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        let stream = null; 
-        
-        // --- Настройки сканирования ---
-        const SCAN_INTERVAL = 500; 
-        let lastScanTime = 0;
-        
-        // --- 1. ПРОВЕРКА ПЕРЕНАПРАВЛЕНИЯ (Главный обходной путь) ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const isExternal = urlParams.get('external') === 'false';
+  <h2 class="center">Сканер QR-кодов</h2>
 
-        if (window.Telegram.WebApp && !isExternal) {
-            
-            window.Telegram.WebApp.ready();
-            overlay.innertext='hshhs';
-            // Строим URL с добавлением параметра external=true
-            const redirectUrl = new URL(document.location.href);
-            redirectUrl.searchParams.set('external', 'true');
-            const externalUrl = redirectUrl.toString();
+  <div id="reader"></div>
 
-            // Автоматическое открытие в системном браузере
-            window.Telegram.WebApp.openLink(externalUrl);
-            window.Telegram.WebApp.close(); 
-            
-            return; // Останавливаем выполнение в WebView
-        } 
-        // --- КОНЕЦ ПРОВЕРКИ ---
+  <div class="center" style="margin-top:1rem;">
+    <button id="startBtn">Запустить сканирование</button>
+    <button id="stopBtn" disabled>Остановить</button>
+  </div>
 
-        
-        // --- 2. Инициализация (Только для внешнего браузера) ---
-        if (window.Telegram.WebApp) {
-            window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand();
-            document.body.style.backgroundColor = window.Telegram.WebApp.themeParams.bg_color || '#222';
-            overlay.style.backgroundColor = window.Telegram.WebApp.themeParams.header_bg_color || 'rgba(0, 0, 0, 0.7)';
-        }
-        
-        // --- 3. Отправка результата и завершение ---
-        function sendResult(data) {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop()); 
-                stream = null;
-            }
-            if (window.Telegram.WebApp) {
-                window.Telegram.WebApp.sendData(data);
-                window.Telegram.WebApp.close();
-            } else {
-                // Сообщение для внешнего браузера, когда Telegram API недоступен
-                alert("Код успешно отправлен боту. Вы можете закрыть это окно.");
-            }
-        }
+  <div id="result"></div>
 
-        function displayError(msg) {
-            errorMsg.innerText = '❌ ' + msg;
-            overlay.innerText = 'СБОЙ.';
-            if (window.Telegram.WebApp) window.Telegram.WebApp.showAlert(msg);
-        }
+  <!-- JS полностью внутри файла -->
+  <script>
+    const resultDiv = document.getElementById("result");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const readerId = "reader";
 
-        // --- 4. Запуск сканера ---
-        async function startScanner() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                displayError('Браузер не поддерживает камеру.');
-                return;
-            }
+    let scanner = null;
 
-            try {
-                overlay.innerText = 'Запрос доступа к камере...';
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: "environment" 
-                    } 
-                });
-                
-                video.srcObject = stream;
-                
-                video.addEventListener('loadedmetadata', () => {
-                    const aspect = video.videoWidth / video.videoHeight;
-                    video.style.width = '100vw';
-                    video.style.height = `${100 / aspect}vw`; 
+    function initTelegramWebApp() {
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.expand();
+      }
+    }
 
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    video.play();
-                    
-                    overlay.innerText = 'Сканирование...';
-                    requestAnimationFrame(tick);
-                }, { once: true });
+    function onScanSuccess(text) {
+      resultDiv.innerHTML = "<b>Найдено:</b> " + text;
 
-            } catch (err) {
-                let msg = 'Ошибка доступа: ';
-                if (err.name === 'NotAllowedError') {
-                    msg = 'Доступ к камере заблокирован.';
-                } else if (err.name === 'SecurityError') {
-                    msg = 'Ошибка безопасности: требуется HTTPS.';
-                }
-                displayError(msg);
-            }
-        }
-        
-        // --- 5. Цикл сканирования с дросселированием ---
-        function tick(now) {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                
-                if (now - lastScanTime < SCAN_INTERVAL) {
-                    requestAnimationFrame(tick);
-                    return;
-                }
-                lastScanTime = now;
-                
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
-                const code = jsQR(imageData.data, canvas.width, canvas.height);
+      if (window.Telegram?.WebApp?.sendData) {
+        window.Telegram.WebApp.sendData(
+          JSON.stringify({ qr: text, ts: Date.now() })
+        );
+      } else {
+        alert("Результат: " + text + "\n(Открыто вне Telegram)");
+      }
 
-                if (code) {
-                    const payload = code.data;
-                    overlay.innerText = 'Код найден! Отправка: ' + payload;
-                    sendResult(payload);
-                    return; 
-                }
-            }
-            requestAnimationFrame(tick);
-        }
-        
-        // --- 6. Точка входа ---
-        if (isExternal) {
-            // Если мы уже во внешнем браузере, начинаем сканирование
-            startScanner();
-        } 
-        
-    </script>
+      stopScanner();
+    }
+
+    function onScanError(err) {
+      console.log("Scan error:", err);
+    }
+
+    function startScanner() {
+      if (scanner) return;
+
+      scanner = new Html5Qrcode(readerId);
+      const config = { fps: 10, qrbox: 250 };
+
+      scanner
+        .start({ facingMode: "environment" }, config, onScanSuccess, onScanError)
+        .then(() => {
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        })
+        .catch((err) => {
+          console.error("Camera error:", err);
+          resultDiv.textContent = "Ошибка доступа к камере: " + err;
+        });
+    }
+
+    function stopScanner() {
+      if (!scanner) return;
+
+      scanner
+        .stop()
+        .then(() => {
+          scanner.clear();
+          scanner = null;
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+        })
+        .catch((err) => console.error("Stop error:", err));
+    }
+
+    startBtn.onclick = startScanner;
+    stopBtn.onclick = stopScanner;
+
+    window.onload = function () {
+      initTelegramWebApp();
+      if (!window.Telegram?.WebApp) {
+        resultDiv.textContent =
+          "⚠️ Откройте страницу через Telegram WebApp (кнопку в боте).";
+      }
+    };
+  </script>
+
 </body>
 </html>
