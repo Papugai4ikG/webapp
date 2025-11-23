@@ -90,7 +90,7 @@
       let currentTrack = null;
       let supportsTorch = false;
       let torchOn = false;
-      const tg = window.Telegram.WebApp; // Получаем объект WebApp
+      const tg =window.Telegram && window.Telegram.WebApp; // Получаем объект WebApp
 
       // Initialize Telegram WebApp if available
       function initTelegram(){
