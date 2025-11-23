@@ -30,7 +30,7 @@
   <div class="app" role="application">
     <header>
       <div>
-        <h1>QR Scanner 1 — Telegram Web App</h1>
+        <h1>QR Scanner 2 — Telegram Web App</h1>
         <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
       </div>
     </header>
@@ -187,10 +187,9 @@
         // 1. Обновляем визуальный результат и кнопку копирования
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
-
         // 2. Логика отправки данных и закрытия WebApp
         if (text && window.Telegram && window.Telegram.WebApp) {
-          const tg = window.Telegram.WebApp;
+          const tg = window.Telegram;
 
           // Включаем MainButton перед потенциальным использованием
           tg.MainButton.enable();
@@ -222,7 +221,7 @@
           // Если результат пустой (text == null/''/etc)
           window.Telegram.WebApp.MainButton.disable();
           output.innerHTML = `<div class="muted" style="color:#ef4444;">Пустой:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
-          }
+          }else{alert('Ошибка доступа к камере:')}
         
           }
     
