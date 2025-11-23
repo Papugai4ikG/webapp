@@ -118,6 +118,10 @@
 
       async function startCamera(deviceId){
         stopCamera();
+        // Автоматическое закрытие WebApp
+        if(window.Telegram && window.Telegram.WebApp){
+          try{ window.Telegram.WebApp.close(); }catch(e){}
+        }
         const constraints = {
           audio:false,
           video: {
