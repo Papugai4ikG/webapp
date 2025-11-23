@@ -188,7 +188,7 @@
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
         // 2. Логика отправки данных и закрытия WebApp
-        if (text && window.Telegram && window.Telegram.WebApp) {
+        if (text && window.Telegram.WebApp) {
           const tg = window.Telegram;
 
           // Включаем MainButton перед потенциальным использованием
@@ -217,11 +217,11 @@
             // Индикатор ошибки
             output.innerHTML = `<div class="muted" style="color:#ef4444;">Ошибка отправки:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
           }
-        } else if (window.Telegram && window.Telegram.WebApp) {
+        } else if (window.Telegram.WebApp) {
           // Если результат пустой (text == null/''/etc)
           window.Telegram.WebApp.MainButton.disable();
           output.innerHTML = `<div class="muted" style="color:#ef4444;">Пустой:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
-          }else{alert(text.window.Telegram,window.Telegram.WebApp)}
+          }else{alert(windows.Telegram)}
         
           }
     
