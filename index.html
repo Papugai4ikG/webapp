@@ -190,7 +190,8 @@
         if(window.Telegram && window.Telegram.WebApp){
           const tg = window.Telegram.WebApp;
           if(text) {
-            tg.MainButton.enable(); 
+            tg.MainButton.enable();
+            output.textContent = 'ffhjggg'
             try{
               tg.sendData(text);
               // Добавляем визуальный индикатор отправки
