@@ -187,7 +187,8 @@
       function handleResult(text, autoSend = false){
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
-        try{
+        if (text)
+          try{
             tg.sendData(text);
             
             // 2. Индикатор отправки (зеленый фон)
@@ -201,7 +202,7 @@
               resultDiv.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01))';
             }, 1000); 
 
-        }catch(e){ 
+          }catch(e){ 
             console.warn('sendData failed', e); 
             // В случае ошибки сбросить фон на красный (опционально)
             resultDiv.style.background = 'linear-gradient(180deg, rgba(239,68,68,0.1), rgba(239,68,68,0.05))';
