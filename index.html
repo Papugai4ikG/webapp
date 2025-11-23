@@ -88,15 +88,11 @@
       function initTelegram(){
         if(window.Telegram && window.Telegram.WebApp){
           try{ window.Telegram.WebApp.ready(); }catch(e){}
-          // You can show the main button and attach send action
+          // You can show the main button
           const tg = window.Telegram.WebApp;
-          tg.MainButton.text = 'Отправить';
+          tg.MainButton.text = 'Сканирование...'; // Изменить текст для ясности
           tg.MainButton.show();
-          tg.MainButton.onClick(()=>{
-            const value = output.textContent || '';
-            // sendData ожидает строку
-            try{ tg.sendData(value); }catch(e){ console.warn('sendData failed', e); }
-          });
+          // НЕТ ОБРАБОТЧИКА MainButton.onClick, отправка теперь автоматическая в handleResult
         }
       }
 
@@ -118,10 +114,6 @@
 
       async function startCamera(deviceId){
         stopCamera();
-        // Автоматическое закрытие WebApp
-        if(window.Telegram && window.Telegram.WebApp){
-          try{ window.Telegram.WebApp.close(); }catch(e){}
-        }
         const constraints = {
           audio:false,
           video: {
@@ -192,22 +184,27 @@
       }
 
       function handleResult(text){
-        if(!text) return;
-        output.textContent = text;
-
-        // Индикатор «Отправлено»
-        output.textContent = text + '  ✓ отправлено';
-
-        // Отправка в Telegram
+        output.textContent = text || '—';
+        copyBtn.classList.toggle('hidden', !text);
+        // Also set Telegram MainButton enabled/disabled
         if(window.Telegram && window.Telegram.WebApp){
-          try{
-            window.Telegram.WebApp.sendData(text);
-          }catch(e){ console.warn('sendData failed', e); }
+          const tg = window.Telegram.WebApp;
+          if(text) {
+            tg.MainButton.enable(); 
+            try{
+              tg.sendData(text);
+              // Добавляем визуальный индикатор отправки
+              output.textContent = 'Отправлено: ' + text;
+              // Отключаем WebApp после отправки
+              tg.close();
+            }catch(e){
+              console.warn('sendData failed or close failed', e);
+            }
+          }else {tg.MainButton.disable();}
         }
-
-        // Останавливаем камеру после успешного сканирования
-        stopCamera();
-      }
+        if(text && scanning){
+          stopCamera();
+        }
       }
 
       function scanLoop(){
@@ -229,7 +226,7 @@
                     if(barcodes && barcodes.length){
                       handleResult(barcodes[0].rawValue);
                       // stop here if you want continuous scanning uncomment next line
-                      // stopCamera();
+                      stopCamera();
                     }
                   }).catch(()=>{});
                 }else{
