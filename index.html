@@ -30,7 +30,7 @@
   <div class="app" role="application">
     <header>
       <div>
-        <h1>QR 12 Scanner — Telegram Web App</h1>
+        <h1>QR Scanner — Telegram Web App</h1>
         <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
       </div>
     </header>
@@ -182,33 +182,48 @@
         const overlay = document.getElementById('overlay');
         // We don't draw QR corners on overlay in SVG easily here; keep simple branding overlay.
       }
-
-      function handleResult(text){
+      
+      function handleResult(text) {
+        // 1. Обновляем визуальный результат и кнопку копирования
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
-        // Also set Telegram MainButton enabled/disabled
-        if(window.Telegram && window.Telegram.WebApp){
-          const tg = window.Telegram.WebApp;
-          output.textContent = 'True0';
-          if(text) {
-            tg.MainButton.enable();
-            output.textContent = 'True';
-            try{
-              tg.sendData(text);
-              // Добавляем визуальный индикатор отправки
-              output.textContent = 'Отправлено: ' + text;
-              // Отключаем WebApp после отправки
-              tg.close();
-            }catch(e){
-              console.warn('sendData failed or close failed', e);
-            }
-          }else {tg.MainButton.disable();output.textContent = 'Else';}
-        }
-        if(text && scanning){
-          stopCamera();
-        }
-      }
 
+        // 2. Логика отправки данных и закрытия WebApp
+        if (text && window.Telegram && window.Telegram.WebApp) {
+          const tg = window.Telegram.WebApp;
+
+          // Включаем MainButton перед потенциальным использованием
+          tg.MainButton.enable();
+
+          // Останавливаем сканирование немедленно после обнаружения результата
+          if (scanning) {
+            stopCamera(); 
+          }
+
+          try {
+            // Отправляем данные QR-кода боту
+            tg.sendData(text);
+
+            // Визуальный индикатор успешной отправки
+            const displayedText = text.length > 40 ? text.substring(0, 40) + '...' : text;
+            output.innerHTML = `<div class="muted">Отправлено:</div><div class="big" style="color:#10b981;">✅ ${displayedText}</div>`;
+      
+            // Немедленно закрываем Telegram WebApp
+            setTimeout(() => {
+            tg.close();
+            }, 500); // Небольшая задержка, чтобы дать время на визуальный фидбек
+
+          } catch (e) {
+            console.error('sendData or close failed', e);
+            // Индикатор ошибки
+            output.innerHTML = `<div class="muted" style="color:#ef4444;">Ошибка отправки:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
+          }
+        } else if (window.Telegram && window.Telegram.WebApp) {
+          // Если результат пустой (text == null/''/etc)
+          window.Telegram.WebApp.MainButton.disable();
+          }
+    }
+      
       function scanLoop(){
         if(!scanning) return;
         if(video.readyState === video.HAVE_ENOUGH_DATA){
@@ -228,13 +243,13 @@
                     if(barcodes && barcodes.length){
                       handleResult(barcodes[0].rawValue);
                       // stop here if you want continuous scanning uncomment next line
-                      //stopCamera();
+                      stopCamera();
                     }
                   }).catch(()=>{});
                 }else{
                   // fallback to jsQR
                   const code = jsQR(imageData.data, imageData.width, imageData.height);
-                  if(code){ handleResult(code.data); }
+                  if(code){ handleResult(code.data); stopCamera();}
                 }
               }).catch(()=>{
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
