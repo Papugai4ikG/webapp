@@ -188,13 +188,22 @@
       }
 
       function handleResult(text){
-        output.textContent = text || '—';
-        copyBtn.classList.toggle('hidden', !text);
-        // Also set Telegram MainButton enabled/disabled
+        if(!text) return;
+        output.textContent = text;
+
+        // Индикатор «Отправлено»
+        output.textContent = text + '  ✓ отправлено';
+
+        // Отправка в Telegram
         if(window.Telegram && window.Telegram.WebApp){
-          const tg = window.Telegram.WebApp;
-          if(text) tg.MainButton.enable(); else tg.MainButton.disable();
+          try{
+            window.Telegram.WebApp.sendData(text);
+          }catch(e){ console.warn('sendData failed', e); }
         }
+
+        // Останавливаем камеру после успешного сканирования
+        stopCamera();
+      }
       }
 
       function scanLoop(){
