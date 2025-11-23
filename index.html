@@ -191,7 +191,7 @@
           const tg = window.Telegram.WebApp;
           if(text) {
             tg.MainButton.enable();
-            output.textContent = 'ffhjggg'
+            output.textContent = 'True';
             try{
               tg.sendData(text);
               // Добавляем визуальный индикатор отправки
@@ -201,7 +201,7 @@
             }catch(e){
               console.warn('sendData failed or close failed', e);
             }
-          }else {tg.MainButton.disable();}
+          }else {tg.MainButton.disable();output.textContent = 'Else';}
         }
         if(text && scanning){
           stopCamera();
