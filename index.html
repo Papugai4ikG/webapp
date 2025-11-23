@@ -189,6 +189,7 @@
         // Also set Telegram MainButton enabled/disabled
         if(window.Telegram || window.Telegram.WebApp){
           const tg = window.Telegram.WebApp;
+          output.textContent = 'True0';
           if(text) {
             tg.MainButton.enable();
             output.textContent = 'True';
