@@ -30,7 +30,7 @@
   <div class="app" role="application">
     <header>
       <div>
-        <h1>QR Scanner — Telegram Web App</h1>
+        <h1>QR Scanner 1 — Telegram Web App</h1>
         <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
       </div>
     </header>
@@ -202,7 +202,7 @@
 
           try {
             // Отправляем данные QR-кода боту
-            tg.sendData(text);
+            tg.sendData(JSON.stringify(text));
 
             // Визуальный индикатор успешной отправки
             const displayedText = text.length > 40 ? text.substring(0, 40) + '...' : text;
