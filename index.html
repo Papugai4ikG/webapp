@@ -2,88 +2,372 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Telegram WebApp — QR Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>QR Scanner Pro — Telegram Web App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;color-scheme:dark}
-    html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
-    body{background:linear-gradient(180deg,#071029 0%, #071a2a 100%);display:flex;align-items:center;justify-content:center;padding:16px}
-    .app{width:100%;max-width:780px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
-    header{display:flex;gap:12px;align-items:center;margin-bottom:8px}
-    h1{font-size:16px;margin:0;color:#e6eef6}
-    p.lead{margin:0;color:var(--muted);font-size:13px}
-    .viewer{position:relative;border-radius:10px;overflow:hidden;background:#000;height:420px;display:flex;align-items:center;justify-content:center}
-    video{width:100%;height:100%;object-fit:cover}
-    canvas{display:none}
-    .overlay{position:absolute;inset:0;pointer-events:none}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    button,select{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;color:#e6eef6}
-    .result{
-      margin-top:12px;
-      padding:10px;
-      border-radius:8px;
-      /* Базовый фон */
-      background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
-      color:#dbeafe;
-      transition: background 0.3s ease; /* Добавляем плавный переход для индикатора */
+    :root {
+      --bg-color: #0f172a;
+      --accent-color: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.5);
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --glass-bg: rgba(30, 41, 59, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
     }
-    .muted{color:var(--muted);font-size:13px}
-    .big{font-weight:600}
-    .center{display:flex;align-items:center;justify-content:center}
-    .hidden{display:none}
-    footer{margin-top:10px;text-align:center;color:var(--muted);font-size:12px}
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: #000;
+      color: var(--text-main);
+      overflow: hidden; /* Предотвращаем скролл */
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Фон с градиентом */
+    .ambient-bg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 100%);
+      z-index: -1;
+    }
+
+    /* Header */
+    header {
+      padding: 16px;
+      text-align: center;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    p.lead {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Main Viewer Area */
+    .viewer-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin: 10px;
+      border-radius: 24px;
+      background: #000;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--glass-border);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    video.active { opacity: 1; }
+    canvas { display: none; }
+
+    /* Scanning Overlay */
+    .scan-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-frame {
+      width: 260px;
+      height: 260px;
+      position: relative;
+    }
+
+    /* Уголки рамки */
+    .corner {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-color: var(--accent-color);
+      border-style: solid;
+      border-width: 4px;
+      border-radius: 4px;
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+    .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+    .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+    .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+    .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+    /* Лазер сканера */
+    .laser {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-color);
+      box-shadow: 0 0 15px 2px var(--accent-color);
+      animation: scan 2s infinite linear;
+      opacity: 0;
+    }
+    .scanning .laser { opacity: 1; }
+
+    @keyframes scan {
+      0% { top: 0; }
+      50% { top: 100%; }
+      100% { top: 0; }
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      padding: 20px 16px 30px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--glass-border);
+      border-radius: 24px 24px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 20;
+    }
+
+    .top-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .camera-select-wrapper {
+      flex: 1;
+      margin-right: 12px;
+      position: relative;
+    }
+
+    select {
+      width: 100%;
+      appearance: none;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    
+    /* Иконка стрелочки для селекта */
+    .camera-select-wrapper::after {
+      content: '▼';
+      font-size: 10px;
+      color: var(--text-muted);
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .btn-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-icon:active { transform: scale(0.95); background: rgba(255,255,255,0.1); }
+    .btn-icon.active { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+    .btn-icon svg { width: 24px; height: 24px; fill: currentColor; }
+
+    .main-action {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    #startBtn {
+      background: var(--accent-color);
+      color: white;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
+    #stopBtn {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+    }
+
+    .hidden { display: none !important; }
+
+    /* Result Popup (Toast) */
+    .result-toast {
+      position: absolute;
+      bottom: 140px; /* над контролами */
+      left: 16px;
+      right: 16px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      padding: 16px;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    .result-toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .result-toast.success { border-color: var(--success-color); background: rgba(6, 78, 59, 0.9); }
+    .result-toast.error { border-color: var(--error-color); background: rgba(127, 29, 29, 0.9); }
+
+    .toast-header {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .toast-content {
+      font-size: 15px;
+      font-weight: 500;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .toast-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+    
+    .btn-small {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
   </style>
 </head>
 <body>
-  <div class="app" role="application">
-    <header>
-      <div>
-        <h1>QR Scanner 3 — Telegram Web App</h1>
-        <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
+  <div class="ambient-bg"></div>
+
+  <header>
+    <h1>QR Scanner</h1>
+    <p class="lead">Наведите камеру на код</p>
+  </header>
+
+  <div class="viewer-container" id="viewer">
+    <video id="video" playsinline></video>
+    <canvas id="canvas"></canvas>
+    
+    <div class="scan-overlay">
+      <div class="scan-frame" id="scanFrame">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="laser"></div>
       </div>
-    </header>
-
-    <div class="viewer" id="viewer">
-      <video id="video" playsinline></video>
-      <canvas id="canvas" aria-hidden="true"></canvas>
-      <svg class="overlay" id="overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <rect x="5" y="5" width="90" height="90" stroke="rgba(255,255,255,0.06)" fill="none" rx="6"/>
-      </svg>
     </div>
 
-    <div class="controls">
-      <select id="cameras" aria-label="Выбор камеры"></select>
-      <button id="startBtn">Запустить</button>
-      <button id="stopBtn" class="hidden">Остановить</button>
-      <button id="torchBtn" class="hidden">Фонарик</button>
-      <button id="copyBtn" class="hidden">Копировать</button>
+    <div class="result-toast" id="resultToast">
+      <div class="toast-header" id="toastTitle">Результат</div>
+      <div class="toast-content" id="output">—</div>
+      <div class="toast-actions">
+        <button id="copyBtn" class="btn-small hidden">Копировать</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <div class="top-controls">
+      <div class="camera-select-wrapper">
+        <select id="cameras" aria-label="Выбор камеры"></select>
+      </div>
+      
+      <button id="torchBtn" class="btn-icon hidden" aria-label="Фонарик">
+        <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+      </button>
     </div>
 
-    <div class="result" id="result" aria-live="polite">
-      <div class="muted">Результат:</div>
-      <div id="output" class="big">—</div>
-    </div>
-
-    <footer>
-      <div class="muted">При обнаружении QR данные будут автоматически отправлены боту.</div>
-    </footer>
+    <button id="startBtn" class="main-action">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      Сканировать
+    </button>
+    
+    <button id="stopBtn" class="main-action hidden">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+      Остановить
+    </button>
   </div>
 
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    // Простая Telegram WebApp + QR scanner (один файл). Работает в мобильных/десктоп браузерах.
     (function(){
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       const ctx = canvas.getContext('2d');
       const cameras = document.getElementById('cameras');
+      
+      // Buttons
       const startBtn = document.getElementById('startBtn');
       const stopBtn = document.getElementById('stopBtn');
       const torchBtn = document.getElementById('torchBtn');
       const copyBtn = document.getElementById('copyBtn');
+      
+      // UI Elements
       const output = document.getElementById('output');
-      const resultDiv = document.getElementById('result'); // Добавлено для индикатора
+      const resultToast = document.getElementById('resultToast');
+      const toastTitle = document.getElementById('toastTitle');
+      const scanFrame = document.getElementById('scanFrame');
 
       let stream = null;
       let scanning = false;
@@ -91,14 +375,19 @@
       let currentTrack = null;
       let supportsTorch = false;
       let torchOn = false;
-      const tg =window.Telegram && window.Telegram.WebApp; // Получаем объект WebApp
+      const tg = window.Telegram && window.Telegram.WebApp;
 
-      // Initialize Telegram WebApp if available
       function initTelegram(){
         if(tg){
-          try{ tg.ready(); }catch(e){}
-          // Скрываем основную кнопку, так как отправка будет автоматической.
-          tg.MainButton.hide();
+          try{ 
+            tg.ready(); 
+            tg.expand(); // Разворачиваем на весь экран
+            tg.MainButton.hide();
+            
+            // Настраиваем цвета WebApp
+            if(tg.setHeaderColor) tg.setHeaderColor('#0f172a');
+            if(tg.setBackgroundColor) tg.setBackgroundColor('#000000');
+          }catch(e){}
         }
       }
 
@@ -110,11 +399,15 @@
           videoInputs.forEach((d,i)=>{
             const opt = document.createElement('option');
             opt.value = d.deviceId;
-            opt.textContent = d.label || `camera ${i+1}`;
+            opt.textContent = d.label || `Камера ${i+1}`;
             cameras.appendChild(opt);
           });
-          if(videoInputs.length <= 1) cameras.style.display = 'none';
-          else cameras.style.display = 'inline-block';
+          
+          if(videoInputs.length <= 1) {
+            cameras.disabled = true;
+            // Если камера одна, можно скрыть или оставить disabled для красоты
+             if(videoInputs.length === 0) cameras.innerHTML = '<option>Камера не найдена</option>';
+          }
         }catch(e){ console.error('listCameras', e); }
       }
 
@@ -133,9 +426,13 @@
           stream = await navigator.mediaDevices.getUserMedia(constraints);
           video.srcObject = stream;
           await video.play();
+          
+          video.classList.add('active'); // Плавное появление
+          scanFrame.classList.add('scanning'); // Запуск анимации лазера
+
           currentTrack = stream.getVideoTracks()[0];
 
-          // torch support
+          // Torch Check
           const imageCapture = ('ImageCapture' in window && new ImageCapture(currentTrack));
           if(imageCapture && typeof currentTrack.getCapabilities === 'function'){
             try{
@@ -148,8 +445,10 @@
           scanning = true;
           stopBtn.classList.remove('hidden');
           startBtn.classList.add('hidden');
+          
+          // Сброс UI результата
+          resultToast.classList.remove('visible', 'success', 'error');
           copyBtn.classList.add('hidden');
-          handleResult(''); // Сброс результата
 
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
@@ -157,12 +456,15 @@
           scanLoop();
         }catch(err){
           console.error('startCamera error', err);
-          alert('Ошибка доступа к камере: ' + (err.message || err.name));
+          showToast('Ошибка доступа', err.message || 'Проверьте разрешения камеры', 'error');
         }
       }
 
       function stopCamera(){
         scanning = false;
+        scanFrame.classList.remove('scanning');
+        video.classList.remove('active');
+
         if(scanInterval) { clearTimeout(scanInterval); scanInterval = null; }
         if(stream){
           stream.getTracks().forEach(t=>t.stop());
@@ -171,9 +473,12 @@
         currentTrack = null;
         video.pause();
         video.srcObject = null;
+        
         startBtn.classList.remove('hidden');
         stopBtn.classList.add('hidden');
         torchBtn.classList.add('hidden');
+        torchBtn.classList.remove('active');
+        torchOn = false;
       }
 
       async function toggleTorch(){
@@ -181,37 +486,47 @@
         try{
           torchOn = !torchOn;
           await currentTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
-          torchBtn.textContent = torchOn ? 'Фонарик: вкл' : 'Фонарик: выкл';
+          torchBtn.classList.toggle('active', torchOn);
         }catch(e){ console.warn('Torch error', e); }
       }
 
-      function handleResult(text, autoSend = false){
-        output.textContent = text || '—';
-        copyBtn.classList.toggle('hidden', !text);
-        if (text&&autoSend)
-          try{
-            tg.sendData(text);
-            
-            // 2. Индикатор отправки (зеленый фон)
-            resultDiv.style.background = 'linear-gradient(180deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05))';
-            output.textContent = '✅ Отправлено! ' + text;
+      function showToast(title, text, type = 'default') {
+        toastTitle.textContent = title;
+        output.textContent = text;
+        
+        resultToast.className = 'result-toast visible'; // reset classes
+        if(type === 'success') resultToast.classList.add('success');
+        if(type === 'error') resultToast.classList.add('error');
 
-            // 3. Остановка сканера и сброс индикатора через небольшой таймаут
+        if(type !== 'error' && text && text !== '—') {
+          copyBtn.classList.remove('hidden');
+        } else {
+          copyBtn.classList.add('hidden');
+        }
+      }
+
+      function handleResult(text, autoSend = false){
+        if(!text) return;
+        
+        if (autoSend) {
+          // Вибрация для тактильного отклика (если поддерживается)
+          if(navigator.vibrate) navigator.vibrate(200);
+
+          try {
+            tg.sendData(text);
+            showToast('Успешно отправлено', text, 'success');
+            
             setTimeout(()=>{
               stopCamera();
-              // Возвращаем базовый фон
-              resultDiv.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01))';
-            }, 1000); 
+            }, 1500); 
 
-          }catch(e){ 
+          } catch(e) { 
             console.warn('sendData failed', e); 
-            // В случае ошибки сбросить фон на красный (опционально)
-            resultDiv.style.background = 'linear-gradient(180deg, rgba(239,68,68,0.1), rgba(239,68,68,0.05))';
-            output.textContent = '❌ Ошибка отправки: ' + text;
-            setTimeout(()=>{
-                resultDiv.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01))';
-            }, 3000);
+            showToast('Ошибка отправки', text, 'error');
           }
+        } else {
+           showToast('Найдено', text);
+        }
       }
 
       function scanLoop(){
@@ -224,7 +539,7 @@
             const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
             let code = null;
 
-            // Use BarcodeDetector if available
+            // Native BarcodeDetector
             if(window.BarcodeDetector && BarcodeDetector.getSupportedFormats){
               BarcodeDetector.getSupportedFormats().then(formats=>{
                 if(formats.includes('qr_code')){
@@ -233,59 +548,48 @@
                     if(barcodes && barcodes.length){
                       code = barcodes[0].rawValue;
                     }
-                  }).catch(()=>{});
+                    processCode(code);
+                  }).catch(()=>{ processCode(null); });
+                } else {
+                   fallbackScan(imageData);
                 }
-                
-                if(!code){
-                   // fallback to jsQR if BarcodeDetector didn't find anything or format not supported
-                   const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
-                   if(jsqr_code){ code = jsqr_code.data; }
-                }
-
-                if(code && scanning) {
-                    handleResult(code, true);
-                    return; // Успешное сканирование, выходим из цикла
-                }
-
-              }).catch(()=>{
-                // fallback to jsQR if BarcodeDetector promise failed
-                const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
-                if(jsqr_code){ code = jsqr_code.data; }
-
-                if(code && scanning) {
-                    handleResult(code, true);
-                    return;
-                }
-              });
-            }else{
-              // fallback to jsQR
-              const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
-              if(jsqr_code){ code = jsqr_code.data; }
-
-              if(code && scanning) {
-                  handleResult(code, true);
-                  return;
-              }
+              }).catch(()=>{ fallbackScan(imageData); });
+            } else {
+              fallbackScan(imageData);
             }
 
           }catch(e){ console.error('scanLoop error', e); }
         }
-        // schedule next frame only if still scanning
+        
         if(scanning) {
-            scanInterval = setTimeout(scanLoop, 250);
+            scanInterval = setTimeout(scanLoop, 200); // Чуть быстрее для плавности
         }
       }
 
-      // copy
+      function fallbackScan(imageData) {
+        const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
+        let code = jsqr_code ? jsqr_code.data : null;
+        processCode(code);
+      }
+
+      function processCode(code) {
+        if(code && scanning) {
+            handleResult(code, true);
+        }
+      }
+
+      // Copy Button Logic
       copyBtn.addEventListener('click', ()=>{
-        const text = output.textContent || '';
+        const text = output.textContent;
         if(!text) return;
         navigator.clipboard.writeText(text).then(()=>{
+          const originalText = copyBtn.textContent;
           copyBtn.textContent = 'Скопировано';
-          setTimeout(()=> copyBtn.textContent = 'Копировать', 1200);
+          setTimeout(()=> copyBtn.textContent = originalText, 1200);
         }).catch(()=> alert('Не удалось скопировать'));
       });
 
+      // Event Listeners
       startBtn.addEventListener('click', async ()=>{
         const devId = cameras.value || undefined;
         await startCamera(devId);
@@ -299,18 +603,16 @@
         }
       });
 
-      // initial run
+      // Init
       (async function(){
         initTelegram();
         await listCameras();
       })();
 
-      // Cleanup on page hide/unload
       window.addEventListener('pagehide', stopCamera);
       window.addEventListener('beforeunload', stopCamera);
 
     })();
   </script>
-
 </body>
   </html>
