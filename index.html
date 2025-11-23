@@ -193,15 +193,8 @@
         // Also set Telegram MainButton enabled/disabled
         if(window.Telegram && window.Telegram.WebApp){
           const tg = window.Telegram.WebApp;
-          if(text){
-            tg.MainButton.enable();
-            // Автоматическая отправка сразу после сканирования
-            try{ tg.sendData(text); }catch(e){ console.warn('sendData failed', e); }
-          } else {
-            tg.MainButton.disable();
-          }
+          if(text) tg.MainButton.enable(); else tg.MainButton.disable();
         }
-      }
       }
 
       function scanLoop(){
@@ -289,5 +282,4 @@
   </script>
 
 </body>
-  </html>
-  
+</html>
