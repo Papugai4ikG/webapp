@@ -38,7 +38,7 @@
   <div class="app" role="application">
     <header>
       <div>
-        <h1>QR Scanner 2 — Telegram Web App</h1>
+        <h1>QR Scanner 3 — Telegram Web App</h1>
         <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
       </div>
     </header>
@@ -187,7 +187,7 @@
       function handleResult(text, autoSend = false){
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
-        if (text)
+        if (text&&autoSend)
           try{
             tg.sendData(text);
             
