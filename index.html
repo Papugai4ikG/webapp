@@ -18,7 +18,15 @@
     .overlay{position:absolute;inset:0;pointer-events:none}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     button,select{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;color:#e6eef6}
-    .result{margin-top:12px;padding:10px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));color:#dbeafe}
+    .result{
+      margin-top:12px;
+      padding:10px;
+      border-radius:8px;
+      /* Базовый фон */
+      background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+      color:#dbeafe;
+      transition: background 0.3s ease; /* Добавляем плавный переход для индикатора */
+    }
     .muted{color:var(--muted);font-size:13px}
     .big{font-weight:600}
     .center{display:flex;align-items:center;justify-content:center}
@@ -30,7 +38,7 @@
   <div class="app" role="application">
     <header>
       <div>
-        <h1>QR Scanner 9 — Telegram Web App</h1>
+        <h1>QR Scanner 1 — Telegram Web App</h1>
         <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
       </div>
     </header>
@@ -39,7 +47,6 @@
       <video id="video" playsinline></video>
       <canvas id="canvas" aria-hidden="true"></canvas>
       <svg class="overlay" id="overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <!-- simple guideline overlay -->
         <rect x="5" y="5" width="90" height="90" stroke="rgba(255,255,255,0.06)" fill="none" rx="6"/>
       </svg>
     </div>
@@ -58,11 +65,10 @@
     </div>
 
     <footer>
-      <div class="muted">При обнаружении QR вы можете отправить данные боту через Telegram.WebApp.sendData()</div>
+      <div class="muted">При обнаружении QR данные будут автоматически отправлены боту.</div>
     </footer>
   </div>
 
-  <!-- jsQR from unpkg (lightweight) -->
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
     // Простая Telegram WebApp + QR scanner (один файл). Работает в мобильных/десктоп браузерах.
@@ -76,6 +82,7 @@
       const torchBtn = document.getElementById('torchBtn');
       const copyBtn = document.getElementById('copyBtn');
       const output = document.getElementById('output');
+      const resultDiv = document.getElementById('result'); // Добавлено для индикатора
 
       let stream = null;
       let scanning = false;
@@ -83,16 +90,14 @@
       let currentTrack = null;
       let supportsTorch = false;
       let torchOn = false;
+      const tg = window.Telegram && window.Telegram.WebApp; // Получаем объект WebApp
 
       // Initialize Telegram WebApp if available
       function initTelegram(){
-        if(window.Telegram && window.Telegram.WebApp){
-          try{ window.Telegram.WebApp.ready(); }catch(e){}
-          // You can show the main button
-          const tg = window.Telegram.WebApp;
-          tg.MainButton.text = 'Сканирование...'; // Изменить текст для ясности
-          tg.MainButton.show();
-          // НЕТ ОБРАБОТЧИКА MainButton.onClick, отправка теперь автоматическая в handleResult
+        if(tg){
+          try{ tg.ready(); }catch(e){}
+          // Скрываем основную кнопку, так как отправка будет автоматической.
+          tg.MainButton.hide();
         }
       }
 
@@ -143,6 +148,7 @@
           stopBtn.classList.remove('hidden');
           startBtn.classList.add('hidden');
           copyBtn.classList.add('hidden');
+          handleResult(''); // Сброс результата
 
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
@@ -178,54 +184,38 @@
         }catch(e){ console.warn('Torch error', e); }
       }
 
-      function drawLine(begin, end){
-        const overlay = document.getElementById('overlay');
-        // We don't draw QR corners on overlay in SVG easily here; keep simple branding overlay.
-      }
-      
-      function handleResult(text) {
-        // 1. Обновляем визуальный результат и кнопку копирования
+      function handleResult(text, autoSend = false){
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
-        // 2. Логика отправки данных и закрытия WebApp
-        if (text && window.Telegram.WebApp) {
-          const tg = window.Telegram.WebApp;
 
-          // Включаем MainButton перед потенциальным использованием
-          tg.MainButton.enable();
+        if(autoSend && text && tg){
+          // 1. Отправка данных боту
+          try{
+            tg.sendData(text);
+            
+            // 2. Индикатор отправки (зеленый фон)
+            resultDiv.style.background = 'linear-gradient(180deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05))';
+            output.textContent = '✅ Отправлено! ' + text;
 
-          // Останавливаем сканирование немедленно после обнаружения результата
-          if (scanning) {
-            stopCamera(); 
+            // 3. Остановка сканера и сброс индикатора через небольшой таймаут
+            setTimeout(()=>{
+              stopCamera();
+              // Возвращаем базовый фон
+              resultDiv.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01))';
+            }, 1000); 
+
+          }catch(e){ 
+            console.warn('sendData failed', e); 
+            // В случае ошибки сбросить фон на красный (опционально)
+            resultDiv.style.background = 'linear-gradient(180deg, rgba(239,68,68,0.1), rgba(239,68,68,0.05))';
+            output.textContent = '❌ Ошибка отправки: ' + text;
+            setTimeout(()=>{
+                resultDiv.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01))';
+            }, 3000);
           }
+        }
+      }
 
-          try {
-            // Отправляем данные QR-кода боту
-            tg.sendData(JSON.stringify(text));
-
-            // Визуальный индикатор успешной отправки
-            const displayedText = text.length > 40 ? text.substring(0, 40) + '...' : text;
-            output.innerHTML = `<div class="muted">Отправлено:</div><div class="big" style="color:#10b981;">✅ ${displayedText}</div>`;
-      
-            // Немедленно закрываем Telegram WebApp
-            setTimeout(() => {
-            tg.close();
-            }, 500); // Небольшая задержка, чтобы дать время на визуальный фидбек
-
-          } catch (e) {
-            console.error('sendData or close failed', e);
-            // Индикатор ошибки
-            output.innerHTML = `<div class="muted" style="color:#ef4444;">Ошибка отправки:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
-          }
-        } else if (window.Telegram.WebApp) {
-          // Если результат пустой (text == null/''/etc)
-          window.Telegram.WebApp.MainButton.disable();
-          output.innerHTML = `<div class="muted" style="color:#ef4444;">Пустой:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
-          }else{alert("Ошибка");}
-        
-          }
-    
-      
       function scanLoop(){
         if(!scanning) return;
         if(video.readyState === video.HAVE_ENOUGH_DATA){
@@ -234,39 +224,58 @@
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+            let code = null;
 
-            // Use BarcodeDetector if available and supports qr_code
+            // Use BarcodeDetector if available
             if(window.BarcodeDetector && BarcodeDetector.getSupportedFormats){
-              // try-catch for safety
               BarcodeDetector.getSupportedFormats().then(formats=>{
                 if(formats.includes('qr_code')){
                   const detector = new BarcodeDetector({formats:['qr_code']});
                   detector.detect(imageData).then(barcodes=>{
                     if(barcodes && barcodes.length){
-                      handleResult(barcodes[0].rawValue);
-                      // stop here if you want continuous scanning uncomment next line
-                      stopCamera();
+                      code = barcodes[0].rawValue;
                     }
                   }).catch(()=>{});
-                }else{
-                  // fallback to jsQR
-                  const code = jsQR(imageData.data, imageData.width, imageData.height);
-                  if(code){ handleResult(code.data); stopCamera();}
                 }
+                
+                if(!code){
+                   // fallback to jsQR if BarcodeDetector didn't find anything or format not supported
+                   const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
+                   if(jsqr_code){ code = jsqr_code.data; }
+                }
+
+                if(code && scanning) {
+                    handleResult(code, true);
+                    return; // Успешное сканирование, выходим из цикла
+                }
+
               }).catch(()=>{
-                const code = jsQR(imageData.data, imageData.width, imageData.height);
-                if(code){ handleResult(code.data); }
+                // fallback to jsQR if BarcodeDetector promise failed
+                const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
+                if(jsqr_code){ code = jsqr_code.data; }
+
+                if(code && scanning) {
+                    handleResult(code, true);
+                    return;
+                }
               });
             }else{
               // fallback to jsQR
-              const code = jsQR(imageData.data, imageData.width, imageData.height);
-              if(code){ handleResult(code.data); }
+              const jsqr_code = jsQR(imageData.data, imageData.width, imageData.height);
+              if(jsqr_code){ code = jsqr_code.data; }
+
+              if(code && scanning) {
+                  handleResult(code, true);
+                  return;
+              }
             }
 
           }catch(e){ console.error('scanLoop error', e); }
         }
-        // schedule next frame
-        scanInterval = setTimeout(scanLoop, 250);
+        // schedule next frame only if still scanning
+        if(scanning) {
+            scanInterval = setTimeout(scanLoop, 250);
+        }
       }
 
       // copy
@@ -292,15 +301,10 @@
         }
       });
 
-      // offer to send decoded text to bot via Telegram.WebApp.sendData automatically when detected
-      // If you prefer auto-send immediately, uncomment the lines in handleResult
-
       // initial run
       (async function(){
         initTelegram();
         await listCameras();
-        // If only one camera and label present, try to start automatically (optional)
-        // await startCamera();
       })();
 
       // Cleanup on page hide/unload
@@ -311,4 +315,4 @@
   </script>
 
 </body>
-</html>
+  </html>
