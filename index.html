@@ -30,7 +30,7 @@
   <div class="app" role="application">
     <header>
       <div>
-        <h1>QR Scanner 5 — Telegram Web App</h1>
+        <h1>QR Scanner 6 — Telegram Web App</h1>
         <p class="lead">Откройте в Telegram (Web App) и используйте камеру для сканирования QR.</p>
       </div>
     </header>
@@ -187,6 +187,7 @@
         // 1. Обновляем визуальный результат и кнопку копирования
         output.textContent = text || '—';
         copyBtn.classList.toggle('hidden', !text);
+        alert(text&&window.Telegram)
         // 2. Логика отправки данных и закрытия WebApp
         if (text && window.Telegram.WebApp) {
           const tg = window.Telegram.WebApp;
