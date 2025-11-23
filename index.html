@@ -221,8 +221,11 @@
         } else if (window.Telegram && window.Telegram.WebApp) {
           // Если результат пустой (text == null/''/etc)
           window.Telegram.WebApp.MainButton.disable();
+          output.innerHTML = `<div class="muted" style="color:#ef4444;">Пустой:</div><div class="big">${e.message || 'Сбой Telegram WebApp'}</div>`;
           }
-    }
+        
+          }
+    
       
       function scanLoop(){
         if(!scanning) return;
