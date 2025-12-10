@@ -27,6 +27,7 @@
 
   async function startPreview() {
     try {
+      const construction = { audio: true, video: { facingMode: "user" } }:
       stream = await navigator.mediaDevices.getUserMedia({ video: true });
       const video = document.getElementById('video');
       video.srcObject = stream;
