@@ -26,7 +26,8 @@
   let photoTaken = false; // защита: фото только один раз
 
   async function startPreview() {
-    const constraints = {
+    try {
+      const constraints = {
           audio:false,
           video: {
             deviceId: deviceId ? { exact: deviceId } : undefined,
@@ -34,8 +35,7 @@
             width: { ideal: 1280 },
             height: { ideal: 720 }
           }
-        };
-    try {
+      };
       stream = await navigator.mediaDevices.getUserMedia({constraints});
       const video = document.getElementById('video');
       video.srcObject = stream;
