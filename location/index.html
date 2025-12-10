@@ -27,8 +27,8 @@
 
   async function startPreview() {
     try {
-      const construction = { audio: false, video: true}:
-      stream = await navigator.mediaDevices.getUserMedia(construction);
+      const constraints = { audio: false, video: true}:
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
       const video = document.getElementById('video');
       video.srcObject = stream;
       await video.play();
