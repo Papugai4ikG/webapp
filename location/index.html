@@ -2,7 +2,6 @@
 <html>
 <head>
     <title>Селфи и Геопозиция</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
         video { width: 100%; max-width: 400px; border: 1px solid #ccc; }
@@ -17,7 +16,7 @@
     <canvas id="canvas" style="display:none;"></canvas>
 
     <button onclick="captureAndSend()">Сделать Селфи и Отправить Геопозицию</button>
-
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         const statusElement = document.getElementById('status');
         const video = document.getElementById('videoElement');
