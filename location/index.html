@@ -1,1 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Селфи и Геопозиция</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        video { width: 100%; max-width: 400px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin-top: 20px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Подтверждение Местоположения</h1>
+    <p id="status">Ожидание...</p>
 
+    <video id="videoElement" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <button onclick="captureAndSend()">Сделать Селфи и Отправить Геопозицию</button>
+
+    <script>
+        const statusElement = document.getElementById('status');
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let imageBlob = null;
+        let geoPosition = null;
+
+        // 1. Запрос доступа к камере
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                video.srcObject = stream;
+            } catch (err) {
+                statusElement.textContent = 'Ошибка: Не удалось получить доступ к камере. ' + err.message;
+            }
+        }
+
+        // 2. Запрос геопозиции
+        function getGeolocation() {
+            return new Promise((resolve, reject) => {
+                if ('geolocation' in navigator) {
+                    statusElement.textContent = 'Получение геопозиции...';
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            geoPosition = {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                            };
+                            resolve(geoPosition);
+                        },
+                        (error) => {
+                            reject('Ошибка геолокации: ' + error.message);
+                        },
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    );
+                } else {
+                    reject('Ошибка: Геолокация не поддерживается браузером.');
+                }
+            });
+        }
+
+        // 3. Захват изображения и отправка данных
+        async function captureAndSend() {
+            statusElement.textContent = 'Захват изображения...';
+
+            // Настройка Canvas для захвата кадра
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Получение фото в виде Blob
+            canvas.toBlob(async (blob) => {
+                imageBlob = blob;
+                try {
+                    // Получение геопозиции
+                    const location = await getGeolocation();
+                    statusElement.textContent = `Успешно получены фото (${blob.size} байт) и геопозиция. Отправка...`;
+
+                    // **ВАЖНЫЙ ШАГ: Отправка данных боту**
+                    // В соответствии с вашим требованием, мы отправляем только геопозицию в Telegram.
+                    // Фотографию нужно будет отправить на ваш собственный сервер (см. Бэкенд).
+
+                    // Если вы хотите отправить ТОЛЬКО геопозицию обратно в Telegram-бот:
+                    if (window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+                        const data = JSON.stringify({
+                            latitude: location.latitude,
+                            longitude: location.longitude,
+                            // ВАЖНО: Мы НЕ отправляем фото напрямую через этот метод, 
+                            // только геопозицию. 
+                        });
+                        
+                        // Метод отправки данных боту, закрывающий Web App
+                        window.Telegram.WebApp.sendData(data);
+                    } else {
+                        statusElement.textContent = 'Отправка данных невозможна: Не запущено в среде Telegram Web App.';
+                        // Здесь можно было бы сделать AJAX запрос для отправки фото/гео на ваш сервер
+                        // uploadDataToServer(imageBlob, location);
+                    }
+
+                } catch (error) {
+                    statusElement.textContent = 'Ошибка при получении геопозиции: ' + error;
+                }
+            }, 'image/jpeg');
+        }
+
+        // Запуск камеры при загрузке страницы
+        window.onload = startCamera;
+    </script>
+</body>
+</html>
