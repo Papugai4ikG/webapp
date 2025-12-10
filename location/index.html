@@ -27,7 +27,7 @@
 
   async function startPreview() {
     try {
-      const constraints = { audio: false, video: true}:
+      const constraints = { audio: false, video: true};
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       const video = document.getElementById('video');
       video.srcObject = stream;
