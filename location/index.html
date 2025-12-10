@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebApp Photo + Geo 2</title>
+  <title>WebApp Photo + Geo</title>
   <style>
     body { font-family: sans-serif; margin: 0; padding: 20px; background: #f2f2f2; }
     #preview { width: 100%; max-width: 320px; margin-top: 20px; display: none; }
@@ -27,19 +27,10 @@
 
   async function startPreview() {
     try {
-      const constraints = {
-          audio:false,
-          video: {
-            deviceId: 0 ? { exact: 0 } : undefined,
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-      };
-      stream = await navigator.mediaDevices.getUserMedia({constraints});
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
       const video = document.getElementById('video');
       video.srcObject = stream;
-      await video.play();
+      video.play();
     } catch (e) {
       alert('Камера недоступна: ' + e);
     }
