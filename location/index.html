@@ -158,7 +158,7 @@
           // проверим геолокацию
           log('Запрашиваем геопозицию...');
           const sendData = (lat, lon) => {
-            const payload = { lat: lat, lon: lon, photo: dataUrl };
+            const payload = { lat: lat, lon: lon};
             const tg = ensureTelegram();
             if(tg){
               try{
