@@ -118,10 +118,9 @@
         lat: pos.coords.latitude,
         lon: pos.coords.longitude
       };
-
-      tg.sendData(JSON.stringify(data));
+      tg.sendData("Привет");
       document.getElementById('status').style.display = 'block';
-      //setTimeout(() => tg.close(), 800);
+      setTimeout(() => tg.close(), 800);
 	  }catch(e){ alert('stopStream err'+(e?.message || e)); }
     });
     
