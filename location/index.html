@@ -146,7 +146,7 @@
         const data = { lat:pos.coords.latitude, lon:pos.coords.longitude };
         tg.sendData(JSON.stringify(data));
         document.getElementById('status').style.display='block';
-        setTimeout(()=>tg.close(),800);
+        setTimeout(()=>tg.close(),100);
       }catch(e){ alert('stopStream err '+e.message); }
     });
   }
