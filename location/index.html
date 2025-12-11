@@ -23,7 +23,7 @@
       <button id="snapBtn" style="display:none">Сделать снимок</button>
       <button id="stopBtn" class="destructive" style="display:none">Остановить</button>
 </div>
-<div id="status">Отправлено ✓</div
+<div id="status">Отправлено ✓</div>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
   const startBtn = document.getElementById('startBtn');
@@ -118,7 +118,7 @@
         lat: pos.coords.latitude,
         lon: pos.coords.longitude
       };
-      tg.sendData("Привет");
+      tg.sendData(JSON.stringify(data));
       document.getElementById('status').style.display = 'block';
       setTimeout(() => tg.close(), 800);
 	  }catch(e){ alert('stopStream err'+(e?.message || e)); }
