@@ -75,11 +75,11 @@
         log('Запрашиваем доступ к камере...');
         try{
           // пытаемся получить заднюю камеру (facingMode: environment) — но браузер может выбрать любую
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } } });
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'user' } } });
         }catch(e){
           // fallback: без exact (совместимость с некоторыми WebView)
           try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
           } catch (err) {
             // последний fallback: любое видео (пользователь выберет)
             try {
