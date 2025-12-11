@@ -7,27 +7,51 @@
   <style>
     body { font-family: sans-serif; margin: 0; padding: 20px; background: #f2f2f2; }
     #preview { width: 100%; max-width: 320px; margin-top: 20px; display: none; }
-    .btn { padding: 14px 20px; background: #0088cc; color: #fff; border-radius: 10px; border: none; font-size: 18px; width: 100%; }
+    button{flex:1;padding:12px;border-radius:10px;border:0;background:#0366d6;color:#fff;font-weight:600}
+    button.destructive{background:#ef4444}
     #status { margin-top: 15px; font-size: 16px; color: green; display: none; }
   </style>
 </head>
 <body>
 
 <h2>Сделайте фото</h2>
-<button class="btn" onclick="takePhoto()">Сделать снимок</button>
+
+<video id="video" playsinline autoplay muted style="display:none"></video>
 <img id="preview" />
-<div id="status">Отправлено ✓</div>
+<div class="controls" style="margin-top:12px">
+      <button id="startBtn">Запустить камеру</button>
+      <button id="snapBtn" style="display:none">Сделать снимок</button>
+      <button id="stopBtn" class="destructive" style="display:none">Остановить</button>
+</div>
+<div id="status">Отправлено ✓</div
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
+  const startBtn = document.getElementById('startBtn');
+  const snapBtn = document.getElementById('snapBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const video = document.getElementById('video');
+  const preview = document.getElementById('preview');
   const tg = window.Telegram.WebApp;
-  tg.expand();
 
   let stream = null;
   let photoTaken = false; // защита: фото только один раз
+  function ensureTelegram(){
+        if(typeof window.Telegram === 'undefined' || !window.Telegram.WebApp){
+          log('Warning: Telegram.WebApp не доступен. Тестирование вне Telegram возможно, но sendData работать не будет.');
+          return null;
+        }
+        try{
+          return window.Telegram.WebApp;
+        }catch(e){
+          log('Telegram init error: ' + e);
+          return null;
+        }
+      }
 
-   async function startPreview(){
+
+ async function startCamera(){
         // старт по жесту пользователя
-        log('Запрашиваем доступ к камере...');
+        startBtn.disabled = true;
         try{
           // пытаемся получить заднюю камеру (facingMode: environment) — но браузер может выбрать любую
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } } });
@@ -42,6 +66,7 @@
             } catch (err2) {
               log('Ошибка доступа к камере: ' + (err2?.message || err2));
               alert('Камера недоступна: ' + (err2?.message || err2));
+              startBtn.disabled = false;
               return;
             }
           }
@@ -53,12 +78,31 @@
           video.style.display = 'block';
           preview.style.display = 'none';
           await video.play();
-          log('Камера запущена');
+          snapBtn.disabled = false;
+		  snapBtn.style.display = 'inline-block';
+          stopBtn.style.display = 'inline-block';
+          retryBtn.style.display = 'none';
         }catch(e){
-          log('Ошибка при старте видео: ' + (e?.message || e));
           alert('Не удалось проиграть видео: ' + (e?.message || e));
           stopStream();
+          startBtn.disabled = false;
         }
+      }
+
+      function stopStream(){
+        try{
+          if(stream){
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+          }
+        }catch(e){ console.warn('stopStream err', e); }
+        video.pause();
+        video.srcObject = null;
+        video.style.display = 'none';
+        snapBtn.disabled = true;
+		snapBtn.style.display = 'none';
+        stopBtn.style.display = 'none';
+        startBtn.disabled = false;
       }
 
   async function takePhoto() {
@@ -91,8 +135,22 @@
       setTimeout(() => tg.close(), 800);
     });
   }
-
-  window.onload = startPreview;
+   startBtn.addEventListener('click', startCamera);
+   snapBtn.addEventListener('click', takeSnapshot);
+   stopBtn.addEventListener('click', () => {
+        stopStream();
+        photoTaken = false;
+        preview.style.display = 'none';
+        status.style.display = 'none';
+        retryBtn.style.display = 'none';
+      });
+      // Примечание: если запускаешь вне Telegram — ensureTelegram() предупредит.
+      // Проверка поддержки
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        alert('getUserMedia не поддерживается в этом браузере. Попробуйте Chrome/Edge/Firefox или откройте в Telegram.');
+        startBtn.disabled = true;
+        snapBtn.disabled = true;
+      }
 </script>
 
 </body>
