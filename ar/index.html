@@ -2,110 +2,291 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Головоломка</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AR Головоломки в Telegram</title>
+  
+  <!-- Библиотеки -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  
   <style>
+    /* ========== БАЗОВЫЕ СТИЛИ ========== */
     body {
       margin: 0;
       overflow: hidden;
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     }
     
-    #ui {
+    /* Затемнение для лучшей видимости интерфейса */
+    .ar-overlay {
       position: fixed;
-      bottom: 20px;
+      top: 0;
       left: 0;
       right: 0;
+      bottom: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    /* ========== МЕНЮ ВЫБОРА ГОЛОВОЛОМКИ ========== */
+    #puzzle-menu {
+      position: fixed;
+      bottom: 30px;
+      left: 20px;
+      right: 20px;
+      background: rgba(30, 30, 40, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 20px;
+      color: white;
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.3s ease;
+      pointer-events: auto;
+    }
+    
+    .puzzle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .puzzle-card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      padding: 15px 10px;
       text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    
+    .puzzle-card:hover {
+      background: rgba(255,255,255,0.2);
+      transform: scale(1.02);
+    }
+    
+    .puzzle-card.selected {
+      border-color: #4CAF50;
+      background: rgba(76, 175, 80, 0.2);
+    }
+    
+    .puzzle-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+    
+    .puzzle-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .puzzle-desc {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    
+    /* ========== ИГРОВОЙ ИНТЕРФЕЙС ========== */
+    #game-ui {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       z-index: 100;
+      display: none;
       pointer-events: none;
     }
     
-    .button {
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      border: 2px solid #4CAF50;
-      padding: 15px 30px;
-      border-radius: 50px;
-      font-size: 18px;
-      font-weight: bold;
-      margin: 0 10px;
-      pointer-events: auto;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    
-    .hint {
-      background: rgba(0, 0, 0, 0.7);
-      color: #FFD700;
-      padding: 10px 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      display: inline-block;
-      font-size: 16px;
-    }
-    
-    #progress {
+    .top-bar {
       position: fixed;
       top: 20px;
       left: 20px;
       right: 20px;
-      height: 20px;
-      background: rgba(0,0,0,0.5);
-      border-radius: 10px;
-      overflow: hidden;
-      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: auto;
     }
     
-    #progress-bar {
+    .progress-container {
+      flex: 1;
+      margin: 0 15px;
+      height: 10px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    
+    .progress-bar {
       height: 100%;
       background: linear-gradient(90deg, #4CAF50, #8BC34A);
       width: 0%;
       transition: width 0.3s;
     }
     
-    #score {
-      position: fixed;
-      top: 50px;
-      right: 20px;
+    .score-badge {
       background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(5px);
       color: white;
-      padding: 10px 20px;
+      padding: 8px 15px;
       border-radius: 20px;
-      font-size: 18px;
-      z-index: 100;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    
+    .hint-box {
+      position: fixed;
+      bottom: 100px;
+      left: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(5px);
+      color: #FFD700;
+      padding: 15px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 16px;
+      border: 1px solid #FFD700;
+      pointer-events: auto;
+    }
+    
+    .control-buttons {
+      position: fixed;
+      bottom: 30px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      pointer-events: auto;
+    }
+    
+    .btn {
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(5px);
+      color: white;
+      border: 2px solid rgba(255,255,255,0.2);
+      padding: 12px 25px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex: 1;
+      max-width: 200px;
+    }
+    
+    .btn-primary {
+      background: #4CAF50;
+      border-color: #45a049;
+    }
+    
+    .btn-secondary {
+      background: #FF9800;
+      border-color: #F57C00;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
+    
+    /* ========== AR СЦЕНА ========== */
+    a-scene {
+      width: 100%;
+      height: 100vh;
     }
   </style>
 </head>
 <body>
-  <div id="ui">
-    <div class="hint" id="hint-text">Найдите красный куб!</div>
-    <div>
-      <button class="button" onclick="showHint()">Подсказка</button>
-      <button class="button" onclick="resetPuzzle()">Сброс</button>
+  <!-- Затемнение -->
+  <div class="ar-overlay"></div>
+  
+  <!-- ========== МЕНЮ ВЫБОРА ГОЛОВОЛОМКИ ========== -->
+  <div id="puzzle-menu">
+    <h2 style="text-align: center; margin: 0 0 10px 0;">🎮 Выбери головоломку</h2>
+    <p style="text-align: center; opacity: 0.7; margin-bottom: 20px;">Наведи камеру на маркер Hiro</p>
+    
+    <div class="puzzle-grid">
+      <!-- Карточка 1: Поиск предметов -->
+      <div class="puzzle-card" onclick="selectPuzzle(1)" id="puzzle-1">
+        <div class="puzzle-icon">🔍</div>
+        <div class="puzzle-title">Поиск предметов</div>
+        <div class="puzzle-desc">Найди все фигуры</div>
+      </div>
+      
+      <!-- Карточка 2: Вращение -->
+      <div class="puzzle-card" onclick="selectPuzzle(2)" id="puzzle-2">
+        <div class="puzzle-icon">🔄</div>
+        <div class="puzzle-title">Вращение</div>
+        <div class="puzzle-desc">Поверни куб правильно</div>
+      </div>
+      
+      <!-- Карточка 3: Цвета -->
+      <div class="puzzle-card" onclick="selectPuzzle(3)" id="puzzle-3">
+        <div class="puzzle-icon">🎨</div>
+        <div class="puzzle-title">Цвета</div>
+        <div class="puzzle-desc">Соотнеси по цветам</div>
+      </div>
+      
+      <!-- Карточка 4: Лабиринт -->
+      <div class="puzzle-card" onclick="selectPuzzle(4)" id="puzzle-4">
+        <div class="puzzle-icon">🌀</div>
+        <div class="puzzle-title">Лабиринт</div>
+        <div class="puzzle-desc">Проведи шар к цели</div>
+      </div>
+    </div>
+    
+    <button class="btn btn-primary" onclick="startGame()" style="width: 100%; margin-top: 20px;">
+      🚀 Начать игру
+    </button>
+  </div>
+  
+  <!-- ========== ИГРОВОЙ ИНТЕРФЕЙС ========== -->
+  <div id="game-ui">
+    <!-- Верхняя панель -->
+    <div class="top-bar">
+      <button class="btn" onclick="backToMenu()" style="flex: 0; padding: 8px 15px;">←</button>
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="score-badge" id="score">0/5</div>
+    </div>
+    
+    <!-- Подсказка -->
+    <div class="hint-box" id="hint-text">
+      Нажми на красный куб
+    </div>
+    
+    <!-- Кнопки управления -->
+    <div class="control-buttons">
+      <button class="btn btn-secondary" onclick="showHint()">💡 Подсказка</button>
+      <button class="btn" onclick="resetPuzzle()">🔄 Сброс</button>
     </div>
   </div>
   
-  <div id="progress">
-    <div id="progress-bar"></div>
-  </div>
-  
-  <div id="score">🔍 Найдено: 0/5</div>
-  
-  <a-scene id="scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-    <!-- Маркер для головоломки -->
+  <!-- ========== AR СЦЕНА ========== -->
+  <a-scene id="scene" embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; matrixCodeType: 3x3;">
+    <!-- Маркер Hiro (стандартный маркер AR.js) -->
     <a-marker preset="hiro" id="main-marker">
-      <!-- Контейнер для всех объектов головоломки -->
-      <a-entity id="puzzle-container" position="0 0 0">
-        <!-- Объекты будут добавляться динамически -->
-      </a-entity>
+      <!-- Сюда будут загружаться головоломки -->
+      <a-entity id="puzzle-container"></a-entity>
     </a-marker>
     
+    <!-- Камера -->
     <a-entity camera></a-entity>
   </a-scene>
   
-  <script src="js/ar-puzzle.js"></script>
+  <!-- ========== ПОДКЛЮЧЕНИЕ СКРИПТОВ ========== -->
+  <script src="js/puzzle-base.js"></script>
+  <script src="js/puzzle-colors.js"></script>
+  <script src="js/puzzle-rotation.js"></script>
+  <script src="js/puzzle-maze.js"></script>
+  <script src="js/telegram-integration.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
